@@ -1,0 +1,185 @@
+---
+title: "Mid-Semester Project"
+author: "Tony Ianniello"
+date: "4 March 2022"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r chunk settings, include = FALSE}
+
+# This code chunk is a reminder: you can control the display of code chunks in your knitted report.
+# include = FALSE prevents code and results from appearing in the finished file.
+# Thus, you can leave this chunk because it won't knit and be seen in your final output.
+# R Markdown still runs the code in the chunk, and the results can be used by other chunk.
+# See: https://rmarkdown.rstudio.com/lesson-3.html
+
+# opts_chunk$set() is a function that will affect all code chunks in the report.
+# echo = TRUE displays both the code and results in the knited file.
+# The global chunk options become the defaults for the rest of the document. 
+# If you want a particular chunk to have a different appearence, you can specify a different option within that chunk.
+# Source: https://kbroman.org/knitr_knutshell/pages/Rmarkdown.html 
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Project Data Source
+
+Ritchie, Hannah & Roser, M. (2018). "Opioids, cocaine, cannabis and illicit drugs". Published online at OurWorldInData.org. Retrieved from: <https://ourworldindata.org/illicit-drug-use>.
+
+Global Burden of Disease Collaborative Network. Global Burden of Disease Study 2019 (GBD 2019) Results. Seattle, United States: Institute for Health Metrics and Evaluation (IHME). (2020). Retrieved from: <http://ghdx.healthdata.org/gbd-results-tool>.
+
+Aside from the above sources for data used in this study, the R libraries ggplot2, tidyverse, and explore were used for this research project as well. ggplot2 is the primary method of plotting figures for this project, and explore allowed for exploratory data visualization of the datasets. The tidyverse package was used for reading and loading the csv files uploaded to this markdown file from the above sources.
+
+```{r load data}
+
+# install.packages("ggplot2", "tidyverse", "explore")
+library(ggplot2)
+library(tidyverse)
+library(explore)
+
+# load data for the figures
+global_data <- read_csv("global_data.csv")
+us_data <- read_csv("us_data.csv")
+
+```
+
+## Figure 1: Recreated OWID Graphic
+
+Original "Our World in Data" chart on illicit drug use:
+
+<center>![](original.png){#id .class width="75%" height="75%"}</center>
+
+Recreated "Our World in Data" chart on illicit drug use:
+
+```{r figure 1}
+# create the recreated figure
+ggplot(global_data) +
+  geom_histogram(aes(x = val*100, fill = sex),
+                 color = "black",
+                 binwidth = 0.25,
+                 center = 0.125) +
+  
+  # make a facet for each combination of sex and year
+  facet_wrap(vars(sex,year)) +
+  
+  # label the axes and title of the plot
+  labs(x = "Percentage of Population",
+       y = "Count",
+       title = "Global Drug Use Disorders, 1990 - 2019",
+       caption = "Tony Ianniello") +
+  
+  # set the title of the legend and the color palette from
+  # ColorBrewer
+  scale_fill_brewer(name = "Sex", palette = "Set2") +
+  theme_light()
+  
+# save figure as a .png file
+# ggsave("recreated.png")
+  
+```
+
+Recreated Figure 1: Global Drug Use Disorders, 1990 - 2019. Histogram of the percent of national populations with drug use disorders separated by sex from 1990, 2005, and 2019.
+
+## Figure 2: Novel visualization: Percent of population with drug use disorders
+
+To look deeper into this issue, I chose a domestic dataset from the United States to look at how drug use impacts Americans. I used data published by Global Burden of Disease Collaborative Network (GBD) for these next figures. The GBD provides data on all diseases that affect people anywhere in the world and sort them based on different metrics, and in that way their work is extremely important for valuations of different medical conditions and policymaking. In this figure I chose to separate by age group to highlight the differences between different demographics and the regions.
+
+```{r figure 2}
+# create a subset of the data to measure illicit drug dependence and remove # Connecticut datapoints since it is also included in Northeast
+drugs_in_us <- us_data[us_data$Variable=="Illicit Drug Use",]
+drugs_in_us <- drugs_in_us[drugs_in_us$Region!="Connecticut",]
+drugs_in_us <- drugs_in_us[drugs_in_us$`Illicit Drug Use`=="Illicit Drug Dependence in the Past Year",]
+# remove an outlier that estimates illicit drug use as -99999 for 
+# one year in the Eastern Region
+drugs_in_us <- drugs_in_us[-2,]
+names(drugs_in_us)[names(drugs_in_us)=="Age Range"] <- "Ages"
+summary(drugs_in_us)
+
+# create the novel figure
+ggplot(drugs_in_us) +
+  theme_light() +
+  labs(title = "Drug Use Disorders in the United States",
+       x = "Percent of Population with Drug Use Disorder",
+       y = element_blank()) +
+  geom_point(aes(x = Value, y = Region, fill = Region), 
+             alpha = 0.5,
+             shape = 21,
+             size = 2,
+             position = position_jitter(width = 0, height = 0.2)) +
+  geom_violin(aes(x = Value, y = Region, fill = Region), alpha = 0.3) +
+  scale_fill_brewer(palette = "Set2") +
+  coord_cartesian(xlim = c(0,10)) +
+  facet_wrap(vars(Ages)) +
+  theme(legend.position = "none")
+
+# used to save the figure to a .png file
+# ggsave("novel.png")
+
+```
+
+```{r}
+# code for those aged 26 and over
+# create a subset of the data where the age group is Over 25
+over_25 <- drugs_in_us[drugs_in_us$Ages=="Over 25",]
+ggplot(over_25) +
+  theme_light() +
+  
+  # set labels for the axes and the title
+  labs(title = "Drug Use Disorders in the Population over 25",
+       x = "Percent of Population with Drug Use Disorder",
+       y = element_blank()) +
+  
+  # add a point geometry
+  geom_point(aes(x = Value, y = Region, fill = Region), 
+             alpha = 0.5,
+             shape = 21,
+             size = 2,
+             position = position_jitter(width = 0, height = 0.2)) +
+  
+  # add a violin geometry on top of the point geometry with
+  # alpha = 0.3
+  geom_violin(aes(x = Value, y = Region, fill = Region), alpha = 0.3) +
+  scale_fill_brewer(palette = "Set2") +
+  
+  # set the min and max values for the x axis
+  coord_cartesian(xlim = c(0,1.6)) +
+  theme(legend.position = "none")
+
+# used to save the figure to a .png file
+# ggsave("over25.png")
+
+# code for adults aged 18-25
+# create a subset of the data where the age group is 18-25
+young_adults <- drugs_in_us[drugs_in_us$Ages=="18-25",]
+ggplot(young_adults) +
+  theme_light() +
+  
+  # set labels for the axes and the title
+  labs(title = "Drug Use Disorders in the Population 18-25",
+       x = "Percent of Population with Drug Use Disorder",
+       y = element_blank()) +
+  
+  # add a point geometry
+  geom_point(aes(x = Value, y = Region, fill = Region), 
+             alpha = 0.5,
+             shape = 21,
+             size = 2,
+             position = position_jitter(width = 0, height = 0.2)) +
+  
+  # add a violin geometry on top of the point geometry with
+  # alpha = 0.3
+  geom_violin(aes(x = Value, y = Region, fill = Region), alpha = 0.3) +
+  scale_fill_brewer(palette = "Set2") +
+  
+  # set the min and max values for the x axis
+  coord_cartesian(xlim = c(0,10)) +
+  theme(legend.position = "none")
+
+# used to save the figure to a .png file
+# ggsave("young_adults.png")
+```
+
+Novel Figure 2: Drug use disorders in the United States by age group. Points are separated by region of the U.S., with the x axis representing the percent of the given population that has experienced symptoms of drug use disorder within the six months prior to survey.
